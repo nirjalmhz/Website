@@ -14,6 +14,8 @@ import AdminView from "./components/AdminView";
 import Footer from "./components/Footer";
 import AuthModal from "./components/AuthModal";
 import { Loader2, AlertCircle, RefreshCw } from "lucide-react";
+import { auth, onAuthStateChanged } from "./firebase";
+import { FirestoreService } from "./lib/firestoreService";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<string>("dashboard");
@@ -23,6 +25,7 @@ export default function App() {
   // Authentication State
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [fbUser, setFbUser] = useState<any>(null);
 
   // Preferences State (default values)
   const [preferences, setPreferences] = useState<UserPreferences>({
@@ -66,6 +69,17 @@ export default function App() {
       setApiKey(savedApiKey);
     }
 
+    // Set up Firebase Auth state observer to sync auth state
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        console.log("Firebase user detected on startup:", firebaseUser.email);
+        setFbUser(firebaseUser);
+      } else {
+        console.log("No Firebase user detected on startup.");
+        setFbUser(null);
+      }
+    });
+
     // Auto-detect user geolocation on load if supported
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -93,11 +107,13 @@ export default function App() {
         }
       );
     }
+
+    return () => unsubscribe();
   }, []);
 
-  // 2. Load and Sync Auth-Dependent Data (Favorites, History, Preferences)
+  // 2. Load and Sync Auth-Dependent Data (Favorites, History, Preferences) directly from cloud Firestore
   useEffect(() => {
-    if (!token) {
+    if (!user || !fbUser) {
       setFavorites([]);
       setSearchHistory([]);
       return;
@@ -106,36 +122,25 @@ export default function App() {
     const loadUserData = async () => {
       setIsFavHistoryLoading(true);
       try {
-        const headers = { Authorization: `Bearer ${token}` };
-
-        // Concurrent profile queries
-        const [favsRes, historyRes, prefsRes] = await Promise.all([
-          fetch("/api/favorites", { headers }),
-          fetch("/api/history", { headers }),
-          fetch("/api/preferences", { headers }),
+        // Query cloud Firestore directly using our high-performance FirestoreService and Firebase UID
+        const [favs, history, prefs] = await Promise.all([
+          FirestoreService.getFavorites(fbUser.uid),
+          FirestoreService.getSearchHistory(fbUser.uid),
+          FirestoreService.getPreferences(fbUser.uid)
         ]);
 
-        if (favsRes.ok) {
-          const favs = await favsRes.json();
-          setFavorites(favs);
-        }
-        if (historyRes.ok) {
-          const history = await historyRes.json();
-          setSearchHistory(history);
-        }
-        if (prefsRes.ok) {
-          const prefs = await prefsRes.json();
-          setPreferences(prefs);
-        }
+        setFavorites(favs);
+        setSearchHistory(history);
+        setPreferences(prefs);
       } catch (err) {
-        console.error("Failed to sync user data from database:", err);
+        console.error("Failed to sync user data from cloud Firestore:", err);
       } finally {
         setIsFavHistoryLoading(false);
       }
     };
 
     loadUserData();
-  }, [token]);
+  }, [user, fbUser]);
 
   // Apply theme settings to HTML element
   useEffect(() => {
@@ -289,19 +294,20 @@ export default function App() {
     setActiveTab("dashboard");
 
     // Add to history in database if logged in
-    if (token) {
+    if (user) {
       try {
-        await fetch("/api/history", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ id: `${lat.toFixed(4)},${lon.toFixed(4)}`, lat, lon, name, country, state }),
+        const uid = fbUser?.uid || user.id;
+        await FirestoreService.addSearchHistory(uid, {
+          id: `${lat.toFixed(4)},${lon.toFixed(4)}`,
+          lat,
+          lon,
+          name,
+          country,
+          state,
         });
         // Reload history
-        const historyRes = await fetch("/api/history", { headers: { Authorization: `Bearer ${token}` } });
-        if (historyRes.ok) {
-          const history = await historyRes.json();
-          setSearchHistory(history);
-        }
+        const history = await FirestoreService.getSearchHistory(uid);
+        setSearchHistory(history);
       } catch (err) {
         console.error("Failed to append search history:", err);
       }
@@ -310,54 +316,44 @@ export default function App() {
 
   // 6. Favorites Add & Remove
   const handleAddFavorite = async (city: Omit<FavoriteCity, "id" | "addedAt">) => {
-    if (!token) {
+    if (!user) {
       // Prompt log in if not authenticated
       setIsAuthOpen(true);
       return;
     }
     try {
-      const response = await fetch("/api/favorites", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ id: `${city.lat.toFixed(4)},${city.lon.toFixed(4)}`, ...city }),
+      const uid = fbUser?.uid || user.id;
+      await FirestoreService.addFavorite(uid, {
+        id: `${city.lat.toFixed(4)},${city.lon.toFixed(4)}`,
+        ...city,
       });
-      if (response.ok) {
-        const favsRes = await fetch("/api/favorites", { headers: { Authorization: `Bearer ${token}` } });
-        if (favsRes.ok) {
-          setFavorites(await favsRes.json());
-        }
-      }
+      const favs = await FirestoreService.getFavorites(uid);
+      setFavorites(favs);
     } catch (err) {
       console.error("Failed to append city favorite:", err);
     }
   };
 
   const handleRemoveFavorite = async (id: string) => {
-    if (!token) return;
+    if (!user) return;
     try {
-      const response = await fetch(`/api/favorites/${encodeURIComponent(id)}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (response.ok) {
-        setFavorites(favorites.filter((f) => f.id !== id));
-      }
+      const uid = fbUser?.uid || user.id;
+      await FirestoreService.deleteFavorite(uid, id);
+      setFavorites(favorites.filter((f) => f.id !== id));
     } catch (err) {
       console.error("Failed to remove city favorite:", err);
     }
   };
 
   const handleReorderFavorites = async (reorderedIds: string[]) => {
-    if (!token) return;
+    if (!user) return;
     try {
-      const response = await fetch("/api/favorites/reorder", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ reorderedIds }),
-      });
-      if (response.ok) {
-        setFavorites(await response.json());
-      }
+      // Optimistic update for UI fluid response
+      const reorderedFavs = reorderedIds.map((id) => favorites.find((f) => f.id === id)).filter(Boolean) as FavoriteCity[];
+      setFavorites(reorderedFavs);
+
+      const uid = fbUser?.uid || user.id;
+      await FirestoreService.reorderFavorites(uid, reorderedIds);
     } catch (err) {
       console.error("Failed to sync favorites order:", err);
     }
@@ -365,8 +361,11 @@ export default function App() {
 
   // 7. Profile Edit Name
   const handleUpdateProfile = async (name: string): Promise<boolean> => {
-    if (!token || !user) return false;
+    if (!user) return false;
     try {
+      // Sync update directly to Firestore
+      const uid = fbUser?.uid || user.id;
+      await FirestoreService.saveUserProfile(uid, user.email, name);
       // Simulate profile updates or append names in session
       const updatedUser = { ...user, name };
       setUser(updatedUser);
@@ -379,15 +378,11 @@ export default function App() {
 
   // Clear search logs
   const handleClearHistory = async () => {
-    if (!token) return;
+    if (!user) return;
     try {
-      const response = await fetch("/api/history", {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (response.ok) {
-        setSearchHistory([]);
-      }
+      const uid = fbUser?.uid || user.id;
+      await FirestoreService.clearSearchHistory(uid);
+      setSearchHistory([]);
     } catch (err) {
       console.error("Failed to clear search footprint:", err);
     }
@@ -398,13 +393,10 @@ export default function App() {
     const updated = { ...preferences, ...newPrefs };
     setPreferences(updated);
 
-    if (token) {
+    if (user) {
       try {
-        await fetch("/api/preferences", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify(updated),
-        });
+        const uid = fbUser?.uid || user.id;
+        await FirestoreService.savePreferences(uid, updated);
       } catch (err) {
         console.error("Failed to save updated preferences:", err);
       }
@@ -419,10 +411,13 @@ export default function App() {
   const handleLogout = () => {
     setToken(null);
     setUser(null);
+    setFbUser(null);
     setFavorites([]);
     setSearchHistory([]);
     localStorage.removeItem("aether_token");
     localStorage.removeItem("aether_user");
+    // Sign out from Firebase client-side too
+    auth.signOut().catch((e) => console.warn("Firebase signout error:", e));
   };
 
   return (

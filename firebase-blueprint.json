@@ -1,0 +1,99 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile database registration record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique user ID" },
+        "email": { "type": "string", "format": "email", "description": "User email address" },
+        "passwordHash": { "type": "string", "description": "Salted PBKDF2 password hash" },
+        "name": { "type": "string", "description": "Display name of the user" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Date of registration" }
+      },
+      "required": ["id", "email", "passwordHash", "name", "createdAt"]
+    },
+    "Favorite": {
+      "title": "Favorite",
+      "description": "Pinned favorite city for weather monitoring",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner user ID reference" },
+        "id": { "type": "string", "description": "Coordinate-derived unique city identifier" },
+        "name": { "type": "string", "description": "City name" },
+        "country": { "type": "string", "description": "Country name" },
+        "state": { "type": "string", "description": "State/region name" },
+        "lat": { "type": "number", "description": "Latitude coordinate" },
+        "lon": { "type": "number", "description": "Longitude coordinate" },
+        "addedAt": { "type": "string", "format": "date-time", "description": "Date added to favorites" },
+        "orderIndex": { "type": "number", "description": "Order index for drag-and-drop sorting" }
+      },
+      "required": ["userId", "id", "name", "country", "lat", "lon", "addedAt"]
+    },
+    "SearchHistory": {
+      "title": "SearchHistory",
+      "description": "Historic city lookup footprint item",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner user ID reference" },
+        "id": { "type": "string", "description": "Coordinate-derived unique city identifier" },
+        "name": { "type": "string", "description": "City name" },
+        "country": { "type": "string", "description": "Country name" },
+        "state": { "type": "string", "description": "State/region name" },
+        "lat": { "type": "number", "description": "Latitude coordinate" },
+        "lon": { "type": "number", "description": "Longitude coordinate" },
+        "searchedAt": { "type": "string", "format": "date-time", "description": "Date and time searched" }
+      },
+      "required": ["userId", "id", "name", "country", "lat", "lon", "searchedAt"]
+    },
+    "UserPreferences": {
+      "title": "UserPreferences",
+      "description": "User specific meteorological UI configurations",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner user ID reference" },
+        "tempUnit": { "type": "string", "enum": ["C", "F"], "description": "Temperature measurement scale" },
+        "windUnit": { "type": "string", "enum": ["kmh", "ms", "mph", "knots"], "description": "Wind speed measurement unit" },
+        "theme": { "type": "string", "enum": ["light", "dark"], "description": "Visual theme selection" },
+        "notificationsEnabled": { "type": "boolean", "description": "Whether system weather alerts are active" }
+      },
+      "required": ["userId", "tempUnit", "windUnit", "theme", "notificationsEnabled"]
+    },
+    "AdminAlert": {
+      "title": "AdminAlert",
+      "description": "Global developer administrative bulletin advisory",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Advisory alert ID" },
+        "title": { "type": "string", "description": "Headline of the bulletin" },
+        "message": { "type": "string", "description": "Core body text of the bulletin" },
+        "severity": { "type": "string", "enum": ["info", "warning", "danger"], "description": "Visual severity class" },
+        "type": { "type": "string", "description": "Bulletin category" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Date created" }
+      },
+      "required": ["id", "title", "message", "severity", "type", "createdAt"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profile documents"
+    },
+    "favorites/{favoriteId}": {
+      "schema": { "$ref": "#/entities/Favorite" },
+      "description": "User-scoped pinned favorite cities"
+    },
+    "history/{historyId}": {
+      "schema": { "$ref": "#/entities/SearchHistory" },
+      "description": "User-scoped coordinate search footprint items"
+    },
+    "preferences/{userId}": {
+      "schema": { "$ref": "#/entities/UserPreferences" },
+      "description": "User-scoped dashboard preferences"
+    },
+    "alerts/{alertId}": {
+      "schema": { "$ref": "#/entities/AdminAlert" },
+      "description": "System-wide administrative weather bulletins"
+    }
+  }
+}

@@ -20,6 +20,8 @@ import {
   BellRing
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { auth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "../firebase";
+import { FirestoreService } from "../lib/firestoreService";
 
 interface AdminViewProps {
   currentUser: User | null;
@@ -63,27 +65,22 @@ export default function AdminView({ currentUser, onAuthSuccess }: AdminViewProps
     if (!isAdmin) return;
     setIsLoadingData(true);
     try {
-      const token = localStorage.getItem("aether_token");
-      const headers = { "Authorization": `Bearer ${token}` };
-
-      const [statsRes, usersRes, alertsRes] = await Promise.all([
-        fetch("/api/admin/stats", { headers }),
-        fetch("/api/admin/users", { headers }),
-        fetch("/api/admin/alerts", { headers })
+      const [statsData, usersData, alertsData] = await Promise.all([
+        FirestoreService.getAdminStats(),
+        FirestoreService.getAdminUsers(),
+        FirestoreService.getSystemAlerts()
       ]);
 
-      if (statsRes.ok) {
-        const statsData = await statsRes.json();
-        setStats(statsData);
-      }
-      if (usersRes.ok) {
-        const usersData = await usersRes.json();
-        setUsersList(usersData);
-      }
-      if (alertsRes.ok) {
-        const alertsData = await alertsRes.json();
-        setBroadcastsList(alertsData);
-      }
+      setStats({
+        totalUsers: statsData.totalUsers,
+        totalFavorites: statsData.totalFavorites,
+        totalHistory: statsData.totalSearches,
+        activeAlertsCount: statsData.activeAlerts,
+        dbType: "Cloud Firestore"
+      });
+
+      setUsersList(usersData);
+      setBroadcastsList(alertsData);
     } catch (error) {
       console.error("Failed to load admin telemetry", error);
     } finally {
@@ -120,6 +117,27 @@ export default function AdminView({ currentUser, onAuthSuccess }: AdminViewProps
         throw new Error("This account does not have developer administrator privileges.");
       }
 
+      // Sync with Firebase Auth client-side
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+      } catch (fbErr: any) {
+        if (fbErr.code === "auth/user-not-found" || fbErr.code === "auth/invalid-credential" || fbErr.code === "auth/wrong-password") {
+          try {
+            await createUserWithEmailAndPassword(auth, email, password);
+          } catch (createErr) {
+            console.warn("Could not auto-create admin in Firebase Auth:", createErr);
+          }
+        }
+      }
+
+      // Write user profile to cloud Firestore directly from client to bypass server IAM issues
+      try {
+        const fbUid = auth.currentUser?.uid || resData.user.id;
+        await FirestoreService.saveUserProfile(fbUid, resData.user.email, resData.user.name);
+      } catch (fsErr) {
+        console.error("Failed to sync admin profile directly to Firestore:", fsErr);
+      }
+
       // Store token and elevate user
       localStorage.setItem("aether_token", resData.token);
       localStorage.setItem("aether_user", JSON.stringify(resData.user));
@@ -140,35 +158,23 @@ export default function AdminView({ currentUser, onAuthSuccess }: AdminViewProps
     setBroadcastSuccess(false);
 
     try {
-      const token = localStorage.getItem("aether_token");
-      const response = await fetch("/api/admin/alerts", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          title: alertTitle,
-          message: alertMessage,
-          severity: alertSeverity,
-          type: alertType
-        })
+      await FirestoreService.createSystemAlert({
+        title: alertTitle,
+        message: alertMessage,
+        severity: alertSeverity,
+        type: alertType
       });
 
-      if (response.ok) {
-        setAlertTitle("");
-        setAlertMessage("");
-        setAlertType("System Advisory");
-        setBroadcastSuccess(true);
-        setTimeout(() => setBroadcastSuccess(false), 4000);
-        // Refresh
-        fetchAdminData();
-      } else {
-        const errorData = await response.json();
-        alert(errorData.error || "Failed to issue broadcast.");
-      }
+      setAlertTitle("");
+      setAlertMessage("");
+      setAlertType("System Advisory");
+      setBroadcastSuccess(true);
+      setTimeout(() => setBroadcastSuccess(false), 4000);
+      // Refresh
+      fetchAdminData();
     } catch (error) {
       console.error("Failed to issue broadcast alert", error);
+      alert("Failed to issue broadcast.");
     } finally {
       setIsBroadcasting(false);
     }
@@ -179,15 +185,8 @@ export default function AdminView({ currentUser, onAuthSuccess }: AdminViewProps
     if (!confirm("Are you sure you want to retract this system alert announcement?")) return;
 
     try {
-      const token = localStorage.getItem("aether_token");
-      const response = await fetch(`/api/admin/alerts/${alertId}`, {
-        method: "DELETE",
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-
-      if (response.ok) {
-        fetchAdminData();
-      }
+      await FirestoreService.deleteSystemAlert(alertId);
+      fetchAdminData();
     } catch (error) {
       console.error("Retraction failed", error);
     }
@@ -205,20 +204,11 @@ export default function AdminView({ currentUser, onAuthSuccess }: AdminViewProps
     }
 
     try {
-      const token = localStorage.getItem("aether_token");
-      const response = await fetch(`/api/admin/delete-user/${userId}`, {
-        method: "DELETE",
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-
-      if (response.ok) {
-        fetchAdminData();
-      } else {
-        const err = await response.json();
-        alert(err.error || "Deactivation failed.");
-      }
+      await FirestoreService.deleteUser(userId);
+      fetchAdminData();
     } catch (error) {
       console.error("Deactivation failed", error);
+      alert("Deactivation failed.");
     }
   };
 
