@@ -1,0 +1,10 @@
+{
+  "name": "Weather Dashboard",
+  "description": "A professional, premium-quality Weather Dashboard with real-time weather tracking, interactive charts, air quality reports, dynamic weather particle backgrounds, and custom user settings with favorites.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

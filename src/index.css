@@ -1,0 +1,195 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+/* Base custom styles to apply the Frosted Glass Theme */
+body {
+  background-color: #0b0e14;
+  color: #ffffff;
+  font-family: var(--font-sans);
+  transition: background-color 0.5s ease;
+}
+
+html.dark body {
+  background-color: #0b0e14 !important;
+}
+
+html:not(.dark) body {
+  background-color: #f3f4f6 !important;
+  color: #1f2937;
+}
+
+/* Apply beautiful custom scrollbars across the app */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Glass Card Overrides for high transparency & thick white borders as per Mockup */
+.dark .bg-slate-900\/40, 
+.dark .bg-slate-900\/60,
+.dark .bg-slate-950\/20,
+.dark .bg-slate-800\/40,
+.dark .bg-slate-800\/30,
+.dark .bg-slate-900\/50,
+.dark #main-glass-weather-card {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Light mode frosted card equivalents */
+html:not(.dark) .bg-slate-900\/40, 
+html:not(.dark) .bg-slate-900\/60,
+html:not(.dark) .bg-slate-950\/20,
+html:not(.dark) .bg-slate-800\/40,
+html:not(.dark) .bg-slate-800\/30,
+html:not(.dark) .bg-slate-900\/50,
+html:not(.dark) #main-glass-weather-card {
+  background-color: rgba(255, 255, 255, 0.55) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.5) !important;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Card hovering enhancements */
+.dark .bg-slate-950\/20:hover,
+.dark .bg-slate-900\/40:hover,
+.dark .bg-slate-900\/60:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+html:not(.dark) .bg-slate-950\/20:hover,
+html:not(.dark) .bg-slate-900\/40:hover,
+html:not(.dark) .bg-slate-900\/60:hover {
+  background-color: rgba(255, 255, 255, 0.75) !important;
+  border-color: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* Deeper glass for modals and panels */
+.dark .bg-slate-950\/95,
+.dark .bg-slate-900\/95 {
+  background-color: rgba(11, 14, 20, 0.8) !important;
+  backdrop-filter: blur(32px) !important;
+  -webkit-backdrop-filter: blur(32px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+
+html:not(.dark) .bg-slate-950\/95,
+html:not(.dark) .bg-slate-900\/95 {
+  background-color: rgba(255, 255, 255, 0.85) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Custom glow borders */
+.dark .border-white\/10 {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.dark .border-white\/5 {
+  border-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+html:not(.dark) .border-white\/10 {
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+html:not(.dark) .border-white\/5 {
+  border-color: rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Input fields styling */
+.dark input[type="text"],
+.dark input[type="password"],
+.dark input[type="email"],
+.dark #dashboard-search-input {
+  background-color: rgba(255, 255, 255, 0.03) !important;
+  backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+  transition: all 0.2s ease !important;
+}
+
+html:not(.dark) input[type="text"],
+html:not(.dark) input[type="password"],
+html:not(.dark) input[type="email"],
+html:not(.dark) #dashboard-search-input {
+  background-color: rgba(255, 255, 255, 0.7) !important;
+  backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  color: #1f2937 !important;
+  transition: all 0.2s ease !important;
+}
+
+.dark input[type="text"]:focus,
+.dark input[type="password"]:focus,
+.dark input[type="email"]:focus {
+  background-color: rgba(255, 255, 255, 0.07) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25) !important;
+}
+
+html:not(.dark) input[type="text"]:focus,
+html:not(.dark) input[type="password"]:focus,
+html:not(.dark) input[type="email"]:focus {
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  border-color: rgba(59, 130, 246, 0.5) !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15) !important;
+}
+
+/* Title Font overrides */
+h1, h2, h3, h4, .font-bold {
+  font-family: var(--font-display), var(--font-sans);
+  letter-spacing: -0.02em;
+}
+
+/* Elegant font pairing weights */
+.font-sans {
+  font-family: var(--font-sans);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+/* Force high backdrop blurs */
+.backdrop-blur-md {
+  backdrop-filter: blur(12px) !important;
+}
+
+.backdrop-blur-lg {
+  backdrop-filter: blur(18px) !important;
+}
+
+.backdrop-blur-xl {
+  backdrop-filter: blur(24px) !important;
+}
+
+.backdrop-blur-2xl {
+  backdrop-filter: blur(32px) !important;
+}
+
+/* Glowing text shadows */
+.text-glow {
+  text-shadow: 0 0 12px rgba(96, 165, 250, 0.4);
+}
